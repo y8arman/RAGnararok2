@@ -1,0 +1,882 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no"/>
+<title>RAGnarok — A Wavestone AI Showdown</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@600;700;800;900&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+/* ============================================================= THEME */
+:root{
+  --void:#04040c; --void2:#08081a;
+  --panel:rgba(12,14,32,.72); --panel2:rgba(18,20,44,.85);
+  --line:rgba(120,150,255,.18);
+  --ink:#eaf0ff; --dim:#93a2d6;
+  --neon:#6ff0ff; --neon2:#2a7fff;   /* realm-driven */
+  --glow:0 0 10px var(--neon),0 0 26px var(--neon);
+  /* fixed answer identities */
+  --o0:#e94b3c; --o1:#2f6fed; --o2:#f4b400; --o3:#22b866;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;margin:0}
+body{
+  font-family:'Space Grotesk',system-ui,sans-serif;color:var(--ink);
+  background:var(--void);overflow:hidden;position:relative;
+}
+body.phone{
+  overflow:auto;
+  background:
+    radial-gradient(1200px 700px at 50% -10%, rgba(60,90,255,.20), transparent 60%),
+    radial-gradient(900px 600px at 50% 120%, color-mix(in srgb,var(--neon) 22%, transparent), transparent 60%),
+    var(--void);
+}
+#grid{position:fixed;inset:0;z-index:0;display:none}
+body.host #grid{display:block}
+#app{position:relative;z-index:2;height:100%;width:100%}
+h1,h2,h3,.orb{font-family:'Orbitron',sans-serif;letter-spacing:.04em}
+button{font-family:inherit;cursor:pointer;border:none;color:inherit}
+.mono{font-variant-numeric:tabular-nums}
+
+/* scanline / vignette flourish on host */
+body.host::after{content:"";position:fixed;inset:0;z-index:1;pointer-events:none;
+  background:radial-gradient(120% 90% at 50% 40%,transparent 55%,rgba(0,0,6,.72));}
+
+/* ============================================================= LAYOUT */
+.screen{position:absolute;inset:0;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;padding:4vmin;text-align:center;gap:2.4vmin}
+.phone .screen{position:static;min-height:100dvh;padding:22px}
+.hidden{display:none!important}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:18px;
+  backdrop-filter:blur(10px);padding:26px;box-shadow:0 0 0 1px rgba(0,0,0,.4),0 20px 60px rgba(0,0,0,.5)}
+.wide{width:min(1180px,94vw)}
+.narrow{width:min(440px,94vw)}
+.row{display:flex;gap:14px;align-items:center;justify-content:center;flex-wrap:wrap}
+.grow{flex:1}
+.dim{color:var(--dim)}
+.tiny{font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--dim)}
+
+/* ============================================================= BUTTONS */
+.btn{padding:16px 26px;border-radius:14px;font-weight:700;font-size:17px;
+  background:linear-gradient(180deg,color-mix(in srgb,var(--neon) 24%,#0b0e22),#0b0e22);
+  border:1px solid color-mix(in srgb,var(--neon) 60%,transparent);
+  color:#eaf6ff;text-shadow:0 0 8px color-mix(in srgb,var(--neon) 70%,transparent);
+  box-shadow:0 0 18px color-mix(in srgb,var(--neon) 30%,transparent),inset 0 0 14px rgba(0,0,0,.4);
+  transition:transform .08s,box-shadow .2s;font-family:'Orbitron',sans-serif;letter-spacing:.06em}
+.btn:hover{transform:translateY(-2px);box-shadow:0 0 30px color-mix(in srgb,var(--neon) 55%,transparent)}
+.btn:active{transform:translateY(1px)}
+.btn.ghost{background:#0a0c1e;color:var(--dim);border-color:var(--line);text-shadow:none;box-shadow:none}
+.btn.big{padding:22px 40px;font-size:22px}
+.iconbtn{position:fixed;top:14px;right:14px;z-index:30;width:44px;height:44px;border-radius:12px;
+  background:var(--panel2);border:1px solid var(--line);font-size:18px;display:grid;place-items:center}
+
+/* ============================================================= BOOT LOGO */
+.boot{font-family:'Orbitron';font-weight:900;line-height:.92;
+  font-size:clamp(42px,11vw,140px);letter-spacing:.02em}
+.boot .rag{color:#fff;text-shadow:0 0 14px var(--neon),0 0 36px var(--neon),0 0 70px var(--neon2);
+  animation:flick 2.6s infinite}
+.boot .rest{color:#cfe0ff;text-shadow:0 0 10px var(--neon2);animation:flick2 3.1s infinite}
+.sub{font-family:'Orbitron';color:var(--neon);letter-spacing:.42em;font-size:clamp(11px,1.6vw,16px);
+  text-shadow:var(--glow);margin-top:6px}
+@keyframes flick{0%,19%,21%,55%,57%,100%{opacity:1}20%,56%{opacity:.35}}
+@keyframes flick2{0%,42%,44%,100%{opacity:1}43%{opacity:.5}}
+
+/* ============================================================= CODE / QR */
+.code{font-family:'Orbitron';font-weight:900;font-size:clamp(56px,12vw,150px);
+  letter-spacing:.14em;color:#fff;text-shadow:var(--glow)}
+#qr{background:#dff2ff;padding:12px;border-radius:14px;display:inline-block;
+  box-shadow:0 0 30px color-mix(in srgb,var(--neon) 50%,transparent)}
+#qr img,#qr canvas{display:block;border-radius:6px}
+
+/* ============================================================= LOBBY */
+.players{display:flex;flex-wrap:wrap;gap:12px;justify-content:center;max-width:1000px}
+.pchip{display:flex;align-items:center;gap:8px;padding:10px 16px;border-radius:999px;
+  background:var(--panel2);border:1px solid var(--line);font-weight:600;
+  animation:pop .4s cubic-bezier(.2,1.4,.4,1)}
+.pchip .av{font-size:22px}
+@keyframes pop{from{transform:scale(.4);opacity:0}to{transform:scale(1);opacity:1}}
+.count{font-family:'Orbitron';color:var(--neon);text-shadow:var(--glow)}
+
+/* ============================================================= REALM FLASH */
+#realmflash{position:fixed;inset:0;z-index:40;display:none;place-items:center;
+  background:radial-gradient(circle,color-mix(in srgb,var(--neon) 24%,transparent),rgba(2,2,10,.86))}
+#realmflash.on{display:grid;animation:rf 1.5s forwards}
+#realmflash .rn{font-family:'Orbitron';font-weight:900;font-size:clamp(30px,7vw,86px);
+  color:#fff;text-shadow:var(--glow)}
+#realmflash .ri{font-family:'Orbitron';color:var(--neon);letter-spacing:.5em;margin-bottom:10px}
+@keyframes rf{0%{opacity:0;transform:scale(1.3)}15%{opacity:1;transform:scale(1)}80%{opacity:1}100%{opacity:0}}
+
+/* ============================================================= COUNTDOWN */
+.cd{font-family:'Orbitron';font-weight:900;font-size:clamp(90px,26vw,320px);color:#fff;
+  text-shadow:var(--glow);animation:cdpulse .9s ease-out}
+@keyframes cdpulse{from{transform:scale(2.2);opacity:0}to{transform:scale(1);opacity:1}}
+
+/* ============================================================= QUESTION */
+.qtext{font-family:'Orbitron';font-weight:800;line-height:1.15;
+  font-size:clamp(24px,4.4vw,54px);max-width:1100px;text-shadow:0 0 20px rgba(0,0,0,.6)}
+.timerwrap{width:min(900px,90vw);height:16px;border-radius:99px;background:#0a0c1e;
+  border:1px solid var(--line);overflow:hidden}
+.timerbar{height:100%;width:100%;border-radius:99px;
+  background:linear-gradient(90deg,var(--o3),var(--o2),var(--o0));transition:width .1s linear}
+.timernum{font-family:'Orbitron';font-size:34px;color:var(--neon);text-shadow:var(--glow)}
+.opts{display:grid;grid-template-columns:1fr 1fr;gap:16px;width:min(1000px,94vw)}
+.opts.two{grid-template-columns:1fr 1fr;max-width:760px}
+.opt{display:flex;align-items:center;gap:16px;padding:22px;border-radius:16px;font-weight:700;
+  font-size:clamp(16px,2.2vw,26px);color:#fff;text-align:left;position:relative;overflow:hidden;
+  border:2px solid rgba(255,255,255,.14);box-shadow:inset 0 0 30px rgba(0,0,0,.3);
+  transition:transform .1s,filter .2s}
+.opt .gly{font-size:1.5em;filter:drop-shadow(0 0 6px rgba(0,0,0,.5))}
+.opt:active{transform:scale(.97)}
+.opt.o0{background:linear-gradient(180deg,var(--o0),#a5271c)}
+.opt.o1{background:linear-gradient(180deg,var(--o1),#1b3f9e)}
+.opt.o2{background:linear-gradient(180deg,var(--o2),#a67a00);color:#1a1400}
+.opt.o3{background:linear-gradient(180deg,var(--o3),#137a42)}
+.opt.dead{filter:grayscale(.7) brightness(.5)}
+.opt.right{outline:4px solid #7dffb0;box-shadow:0 0 40px #22b866}
+.opt.chosen{transform:scale(1.02);outline:4px solid #fff}
+.phone .opt{min-height:22vh;justify-content:center;font-size:clamp(20px,7vw,30px)}
+.phone .opts{grid-template-columns:1fr 1fr}
+.answered{font-family:'Orbitron';font-size:22px;color:var(--neon);text-shadow:var(--glow)}
+.acount{font-family:'Orbitron';color:var(--neon);text-shadow:var(--glow)}
+
+/* ============================================================= REVEAL FLASH (phone) */
+#flash{position:fixed;inset:0;z-index:35;pointer-events:none;opacity:0;transition:opacity .25s}
+#flash.g{background:radial-gradient(circle,rgba(40,255,140,.5),transparent 70%);opacity:1}
+#flash.r{background:radial-gradient(circle,rgba(255,60,60,.5),transparent 70%);opacity:1}
+.pts{font-family:'Orbitron';font-weight:900;font-size:clamp(40px,14vw,90px);color:#fff;text-shadow:var(--glow)}
+.pts.zero{color:#ff6b6b;text-shadow:0 0 20px #ff3b3b}
+
+/* ============================================================= LEADERBOARD */
+.lb{width:min(920px,94vw);display:flex;flex-direction:column;gap:10px}
+.lbrow{display:flex;align-items:center;gap:14px;padding:12px 16px;border-radius:14px;
+  background:var(--panel2);border:1px solid var(--line);position:relative;overflow:hidden;
+  transform:translateX(-40px);opacity:0;animation:slidein .5s forwards}
+.lbrow .bar{position:absolute;left:0;top:0;bottom:0;width:0;z-index:0;
+  background:linear-gradient(90deg,color-mix(in srgb,var(--neon) 34%,transparent),transparent);
+  transition:width .8s cubic-bezier(.2,.9,.3,1)}
+.lbrow>*{position:relative;z-index:1}
+.lbrow .rk{font-family:'Orbitron';font-weight:900;width:44px;font-size:22px;color:var(--neon)}
+.lbrow .av{font-size:26px}
+.lbrow .nm{flex:1;text-align:left;font-weight:700;font-size:clamp(15px,2vw,22px);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.lbrow .sc{font-family:'Orbitron';font-weight:800;font-size:clamp(16px,2vw,24px)}
+.lbrow.lead{border-color:var(--o2);box-shadow:0 0 24px color-mix(in srgb,var(--o2) 45%,transparent)}
+.climb{font-family:'Orbitron';font-size:13px;color:#7dffb0;background:rgba(40,255,140,.12);
+  padding:2px 8px;border-radius:99px;border:1px solid rgba(40,255,140,.4)}
+@keyframes slidein{to{transform:translateX(0);opacity:1}}
+.saga{font-family:'Orbitron';font-size:clamp(15px,2.4vw,26px);color:var(--neon);text-shadow:var(--glow);
+  min-height:1.4em;max-width:1000px}
+
+/* ============================================================= PODIUM */
+.podium{display:flex;align-items:flex-end;gap:18px;justify-content:center;height:52vh}
+.pod{display:flex;flex-direction:column;align-items:center;gap:10px;opacity:0;transform:translateY(40px)}
+.pod.show{animation:rise .7s cubic-bezier(.2,1.3,.4,1) forwards}
+.pod .plaque{width:min(26vw,220px);border-radius:14px 14px 0 0;display:flex;flex-direction:column;
+  align-items:center;justify-content:flex-end;padding:16px;border:1px solid var(--line);border-bottom:none}
+.pod.p1 .plaque{height:34vh;background:linear-gradient(180deg,var(--o2),#7a5c00);box-shadow:0 0 50px var(--o2)}
+.pod.p2 .plaque{height:24vh;background:linear-gradient(180deg,#c9d4ff,#5a6aa8)}
+.pod.p3 .plaque{height:18vh;background:linear-gradient(180deg,#e0994a,#7a4a1c)}
+.pod .rk{font-family:'Orbitron';font-weight:900;font-size:40px;color:#0a0a18}
+.pod .av{font-size:48px}
+.pod .nm{font-family:'Orbitron';font-weight:800;font-size:clamp(16px,2vw,24px)}
+.pod .sc{font-family:'Orbitron';color:var(--neon);text-shadow:var(--glow)}
+@keyframes rise{to{opacity:1;transform:translateY(0)}}
+#confetti{position:fixed;inset:0;z-index:38;pointer-events:none;display:none}
+#confetti.on{display:block}
+.winline{font-family:'Orbitron';font-size:clamp(22px,4vw,48px);color:#fff;text-shadow:var(--glow);margin-top:8px}
+
+/* inputs */
+input.txt{width:100%;padding:16px;border-radius:12px;background:#0a0c1e;border:1px solid var(--line);
+  color:var(--ink);font-size:18px;font-family:inherit;text-align:center}
+input.txt:focus{outline:none;border-color:var(--neon);box-shadow:var(--glow)}
+.sigils{display:grid;grid-template-columns:repeat(6,1fr);gap:10px;margin:8px 0}
+.sig{font-size:26px;padding:10px;border-radius:12px;background:#0a0c1e;border:1px solid var(--line)}
+.sig.sel{border-color:var(--neon);box-shadow:var(--glow);transform:scale(1.05)}
+.err{color:#ff7b7b;font-size:14px;min-height:1.1em}
+.you{font-family:'Orbitron';color:var(--neon);text-shadow:var(--glow)}
+</style>
+</head>
+<body>
+<canvas id="grid"></canvas>
+<canvas id="confetti"></canvas>
+<div id="flash"></div>
+<div id="realmflash"><div><div class="ri" id="rf-i"></div><div class="rn" id="rf-n"></div></div></div>
+<button class="iconbtn" id="mute" title="Mute">🔊</button>
+<div id="app"></div>
+
+<!-- Firebase compat SDK (Realtime Database) -->
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
+<!-- QR -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script>
+/* ================================================================
+   1)  FIREBASE CONFIG  —  PASTE YOUR PROJECT VALUES HERE
+   databaseURL is REQUIRED for the Realtime Database.
+   ================================================================ */
+const firebaseConfig = {
+  apiKey:            "AIzaSyB0AXycVc43SmpGWTJohaApsdQuzYOtYuU",
+  authDomain:        "ragnarok2-4ac1c.firebaseapp.com",
+  databaseURL:       "https://ragnarok2-4ac1c-default-rtdb.europe-west1.firebasedatabase.app",  // <-- REQUIRED
+  projectId:         "ragnarok2-4ac1c",
+  storageBucket:     "ragnarok2-4ac1c.firebasestorage.app",
+  messagingSenderId: "316971979079",
+  appId:             "1:316971979079:web:88e3780c4ad7cfb5fbfc62"
+};
+
+/* ================================================================
+   2)  QUESTIONS  —  edit freely.  Exactly 5 for the 5 realms.
+   options: 2 items => rendered as True / False.
+   answer: index of correct option.  time: milliseconds.
+   ================================================================ */
+const QUESTIONS = [
+  { q:"In an LLM stack, what does RAG stand for?",
+    options:["Retrieval-Augmented Generation","Recursive Answer Grid","Rapid Adaptive Grounding","Ranked Attention Gating"],
+    answer:0, time:20000 },
+  { q:"Embeddings turn text into vectors so that semantic similarity can be measured as distance in that space.",
+    options:["True","False"], answer:0, time:15000 },
+  { q:"Which component actually stores embeddings and serves nearest-neighbour retrieval?",
+    options:["Message queue","Vector database","Load balancer","Container registry"],
+    answer:1, time:20000 },
+  { q:"A model confidently producing plausible but fabricated facts is best described as…",
+    options:["A hallucination","A prompt injection","A cache miss","A GPU throttle"],
+    answer:0, time:20000 },
+  { q:"Grounding answers in retrieved source documents (RAG) can reduce hallucinations.",
+    options:["True","False"], answer:0, time:15000 }
+];
+
+/* ================================================================
+   3)  REALMS — colour-cycle skin per question (index % 5)
+   ================================================================ */
+const REALMS = [
+  { name:"Niflheim",   n1:"#7bf0ff", n2:"#2a86ff" },
+  { name:"Muspelheim", n1:"#ff6a3d", n2:"#ffb300" },
+  { name:"The Void",   n1:"#b97bff", n2:"#ff56d6" },
+  { name:"Bifröst",    n1:"#4dffcf", n2:"#7c4dff" },
+  { name:"Asgard",     n1:"#ffd24a", n2:"#ff8a2e" }
+];
+function applyRealm(i){
+  const r=REALMS[i%5];
+  document.body.style.setProperty('--neon',r.n1);
+  document.body.style.setProperty('--neon2',r.n2);
+  return r;
+}
+function realmFlash(i){
+  const r=REALMS[i%5], el=document.getElementById('realmflash');
+  document.getElementById('rf-i').textContent='REALM 0'+(i%5+1);
+  document.getElementById('rf-n').textContent=r.name;
+  el.classList.remove('on'); void el.offsetWidth; el.classList.add('on');
+  setTimeout(()=>el.classList.remove('on'),1500);
+}
+
+const GLYPHS=['▲','◆','●','■'];
+const SIGILS=['⚡','🔨','🐺','🐉','🦅','🌌','❄️','🔥','🌈','⭐','🛡️','☠️'];
+const BADWORDS=['fuck','shit','bitch','cunt','asshole','nigger','faggot','dick','piss','bastard','slut','whore'];
+function clean(name){
+  const low=name.toLowerCase().replace(/[^a-z]/g,'');
+  return !BADWORDS.some(w=>low.includes(w));
+}
+
+/* ================================================================
+   4)  AUDIO  (Web Audio synth, no files)
+   ================================================================ */
+const Sfx=(()=>{
+  let ctx,master;
+  function ensure(){ if(ctx) return;
+    ctx=new (window.AudioContext||window.webkitAudioContext)();
+    master=ctx.createGain(); master.gain.value=S.muted?0:0.5; master.connect(ctx.destination); }
+  function tone(f,d,type='sine',v=0.3,when=0){ ensure(); const t=ctx.currentTime+when;
+    const o=ctx.createOscillator(),g=ctx.createGain(); o.type=type; o.frequency.setValueAtTime(f,t);
+    g.gain.setValueAtTime(0,t); g.gain.linearRampToValueAtTime(v,t+0.012);
+    g.gain.exponentialRampToValueAtTime(0.0001,t+d); o.connect(g); g.connect(master);
+    o.start(t); o.stop(t+d+0.03); }
+  function slide(f1,f2,d,type='sawtooth',v=0.25,when=0){ ensure(); const t=ctx.currentTime+when;
+    const o=ctx.createOscillator(),g=ctx.createGain(); o.type=type;
+    o.frequency.setValueAtTime(f1,t); o.frequency.exponentialRampToValueAtTime(f2,t+d);
+    g.gain.setValueAtTime(v,t); g.gain.exponentialRampToValueAtTime(0.0001,t+d);
+    o.connect(g); g.connect(master); o.start(t); o.stop(t+d+0.02); }
+  function noise(d,v=0.3,when=0,cut=1400){ ensure(); const t=ctx.currentTime+when;
+    const b=ctx.createBuffer(1,Math.max(1,ctx.sampleRate*d),ctx.sampleRate), dt=b.getChannelData(0);
+    for(let i=0;i<dt.length;i++) dt[i]=Math.random()*2-1;
+    const s=ctx.createBufferSource(); s.buffer=b; const g=ctx.createGain();
+    g.gain.setValueAtTime(v,t); g.gain.exponentialRampToValueAtTime(0.0008,t+d);
+    const f=ctx.createBiquadFilter(); f.type='lowpass'; f.frequency.value=cut;
+    s.connect(f); f.connect(g); g.connect(master); s.start(t); s.stop(t+d); }
+  return {
+    ensure, setMute(m){ if(master) master.gain.value=m?0:0.5; },
+    tick(){ tone(880,0.07,'square',0.18); },
+    count(n){ tone(n===1?560:420,0.16,'triangle',0.3); },
+    go(){ slide(220,700,0.35,'sawtooth',0.28); },
+    tap(){ tone(660,0.05,'square',0.16); },
+    correct(){ [523,659,784,1047].forEach((f,i)=>tone(f,0.32,'triangle',0.26,i*0.06)); },
+    wrong(){ slide(200,80,0.5,'sawtooth',0.3); },
+    whoosh(){ slide(160,620,0.4,'sine',0.2); },
+    drumroll(dur=2){ const n=Math.floor(dur*20); for(let i=0;i<n;i++) noise(0.05,0.22,i*(dur/n),900); },
+    fanfare(){ [523,659,784,1047,1319].forEach((f,i)=>tone(f,0.5,'square',0.24,i*0.13));
+               tone(1047,1.3,'triangle',0.3,0.7); tone(1568,1.3,'triangle',0.18,0.7); }
+  };
+})();
+function buzz(p){ if(navigator.vibrate){ try{navigator.vibrate(p);}catch(e){} } }
+
+/* ================================================================
+   5)  STATE
+   ================================================================ */
+const S={ role:null, code:null, pid:null, meName:null, meAv:null,
+  game:null, players:{}, answers:{}, phase:null, q:-1,
+  offset:0, muted:false, lastKey:'', deadline:0,
+  prevRanks:{}, climbs:{}, saga:[], revealDone:false, cdTimer:null, revealTimer:null };
+let db,fb;
+
+function serverNow(){ return Date.now()+S.offset; }
+const $=id=>document.getElementById(id);
+const app=()=>$('app');
+function esc(s){ return (s||'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+function rand(alpha,n){ let s=''; for(let i=0;i<n;i++) s+=alpha[Math.floor(Math.random()*alpha.length)]; return s; }
+const CODE_ALPHA='ABCDEFGHJKMNPQRSTUVWXYZ23456789';
+
+/* ================================================================
+   6)  BOOT
+   ================================================================ */
+window.addEventListener('load',()=>{
+  try{ fb=firebase; firebase.initializeApp(firebaseConfig); db=firebase.database();
+       db.ref('.info/serverTimeOffset').on('value',s=>S.offset=s.val()||0); }
+  catch(e){ /* still show UI so setup is visible */ console.warn(e); }
+  applyRealm(0);
+  $('mute').onclick=()=>{ S.muted=!S.muted; Sfx.setMute(S.muted); $('mute').textContent=S.muted?'🔇':'🔊'; };
+  document.body.addEventListener('pointerdown',()=>Sfx.ensure(),{once:true});
+  const join=new URLSearchParams(location.search).get('join');
+  if(join) renderJoin(join.toUpperCase()); else renderLanding();
+});
+
+/* ================================================================
+   7)  LANDING
+   ================================================================ */
+function renderLanding(){
+  document.body.className='';
+  applyRealm(0);
+  app().innerHTML=`
+   <div class="screen">
+     <div class="boot"><span class="rag">RAG</span><span class="rest">narok</span></div>
+     <div class="sub">A WAVESTONE AI SHOWDOWN</div>
+     <div class="row" style="margin-top:5vh">
+       <button class="btn big" id="bHost">⚔️ Host Realm</button>
+       <button class="btn big ghost" id="bJoin">Join Battle</button>
+     </div>
+     <div class="tiny" style="margin-top:4vh">Host on the projector · warriors join on their phones</div>
+   </div>`;
+  $('bHost').onclick=()=>{ Sfx.ensure(); startHost(); };
+  $('bJoin').onclick=()=>renderJoin('');
+}
+
+/* ================================================================
+   8)  HOST
+   ================================================================ */
+function startHost(){
+  document.body.className='host';
+  S.role='host';
+  const code=makeCode();
+  S.code=code;
+  const ref=db.ref('games/'+code);
+  ref.set({ phase:'lobby', currentQ:-1, questionStartAt:null, createdAt:fb.database.ServerValue.TIMESTAMP });
+  startGrid();
+  ref.on('value',snap=>{ const g=snap.val()||{}; S.game=g;
+    S.players=g.players||{}; S.answers=g.answers||{}; S.phase=g.phase; S.q=g.currentQ;
+    hostTick(); render(); });
+}
+function makeCode(){ return rand(CODE_ALPHA,4); }
+
+function hostBegin(){ hostToQuestion(0); }
+function hostToQuestion(i){
+  S.revealDone=false;
+  db.ref('games/'+S.code).update({phase:'countdown',currentQ:i,questionStartAt:null,
+     ['answers/'+i]:null});
+  clearTimeout(S.cdTimer);
+  S.cdTimer=setTimeout(()=>{
+    db.ref('games/'+S.code).update({phase:'question',questionStartAt:fb.database.ServerValue.TIMESTAMP});
+  },3300);
+}
+function hostTick(){
+  if(S.role!=='host') return;
+  // auto-reveal on timeout or all answered
+  if(S.phase==='question' && S.game.questionStartAt){
+    const q=QUESTIONS[S.q];
+    const ans=(S.answers[S.q])||{};
+    const answered=Object.keys(ans).length, total=Object.keys(S.players).length;
+    const over = serverNow()-S.game.questionStartAt >= q.time;
+    if(!S.revealDone && (over || (total>0 && answered>=total))){
+      if(answered>=total && total>0 && !over){ // small grace so last taps land
+        clearTimeout(S.revealTimer); S.revealTimer=setTimeout(hostReveal,350);
+      } else hostReveal();
+    }
+  }
+}
+function rankMap(players){
+  const arr=Object.entries(players).map(([id,p])=>({id,score:p.score||0}));
+  arr.sort((a,b)=>b.score-a.score);
+  const m={}; arr.forEach((x,i)=>m[x.id]=i+1); return m;
+}
+function hostReveal(){
+  if(S.role!=='host'||S.revealDone||S.phase!=='question') return;
+  S.revealDone=true;
+  const q=QUESTIONS[S.q], go=S.game.questionStartAt||serverNow();
+  const ans=(S.answers[S.q])||{};
+  const prev=rankMap(S.players);
+  const upd={}; const np={};
+  let fastest=null, fastAt=Infinity;
+  Object.entries(S.players).forEach(([pid,p])=>{
+    const a=ans[pid]; let correct=false, pts=0, streak=p.streak||0;
+    if(a && a.choice===q.answer){
+      correct=true;
+      let frac=Math.max(0,Math.min(1,(a.at-go)/q.time));
+      let sp=Math.round((1000*(1-frac*0.5))/10)*10;
+      streak=streak+1;
+      pts=sp+Math.min(Math.max(streak-1,0),5)*100;
+      if(a.at<fastAt){ fastAt=a.at; fastest=pid; }
+    } else { streak=0; pts=0; }
+    upd['players/'+pid+'/score']=(p.score||0)+pts;
+    upd['players/'+pid+'/streak']=streak;
+    upd['players/'+pid+'/lastPoints']=pts;
+    upd['players/'+pid+'/lastCorrect']=correct;
+    np[pid]={...p,score:(p.score||0)+pts,streak,lastPoints:pts,lastCorrect:correct};
+  });
+  // ranks & climbs for the saga
+  const next=rankMap(np); S.climbs={}; let topClimber=null,topClimb=0;
+  Object.keys(np).forEach(pid=>{ const d=(prev[pid]||99)-(next[pid]||99); S.climbs[pid]=d;
+    if(d>topClimb){topClimb=d;topClimber=pid;} });
+  const newLeader=Object.keys(next).find(pid=>next[pid]===1);
+  const leaderChanged=newLeader && prev[newLeader]!==1;
+  const anyCorrect=Object.values(np).some(p=>p.lastCorrect);
+  const bestStreak=Object.entries(np).reduce((m,[id,p])=>p.streak>(m.s||0)?{id,s:p.streak}:m,{});
+  // build Norse commentary
+  const nm=id=>esc(np[id]?.name||'A warrior');
+  const saga=[];
+  if(!anyCorrect && Object.keys(np).length) saga.push('💀 The realms fall silent — Ragnarök itself claims this round.');
+  if(fastest) saga.push('⚡ '+nm(fastest)+' struck first — Mjölnir answers to their hand!');
+  if(leaderChanged) saga.push('👑 '+nm(newLeader)+' seizes the throne of Asgard!');
+  if(topClimber && topClimb>=2) saga.push('🌈 '+nm(topClimber)+' ascends the realms — climbs '+topClimb+' places!');
+  if(bestStreak.s>=3) saga.push('🔨 '+nm(bestStreak.id)+' is deemed worthy — '+bestStreak.s+' in a row!');
+  S.saga=saga;
+  upd.phase='reveal';
+  db.ref('games/'+S.code).update(upd);
+}
+function hostNext(){
+  if(S.q>=QUESTIONS.length-1) db.ref('games/'+S.code).update({phase:'podium'});
+  else db.ref('games/'+S.code).update({phase:'leaderboard'}); // safety
+}
+
+/* ================================================================
+   9)  JOIN + PLAYER
+   ================================================================ */
+function renderJoin(code){
+  document.body.className='phone'; S.role='joining';
+  applyRealm(0);
+  app().innerHTML=`
+   <div class="screen">
+     <div class="boot" style="font-size:clamp(34px,13vw,70px)"><span class="rag">RAG</span><span class="rest">narok</span></div>
+     <div class="sub" style="letter-spacing:.28em">JOIN THE SHOWDOWN</div>
+     <div class="panel narrow" style="margin-top:4vh">
+       <div class="tiny">Battle code</div>
+       <input class="txt mono" id="jcode" maxlength="4" placeholder="ABCD"
+              style="letter-spacing:.4em;font-family:Orbitron;font-size:30px;text-transform:uppercase" value="${esc(code)}">
+       <div class="tiny" style="margin-top:16px">Choose your sigil</div>
+       <div class="sigils" id="sigils"></div>
+       <input class="txt" id="jname" maxlength="16" placeholder="Your warrior name" style="margin-top:8px">
+       <div class="err" id="jerr"></div>
+       <button class="btn big" id="jgo" style="width:100%;margin-top:8px">Enter the Fray</button>
+     </div>
+   </div>`;
+  const sg=$('sigils'); S.meAv=SIGILS[0];
+  SIGILS.forEach((e,i)=>{ const b=document.createElement('button'); b.className='sig'+(i===0?' sel':'');
+    b.textContent=e; b.onclick=()=>{ [...sg.children].forEach(c=>c.classList.remove('sel'));
+      b.classList.add('sel'); S.meAv=e; Sfx.tap(); buzz(8); }; sg.appendChild(b); });
+  $('jgo').onclick=doJoin;
+  $('jcode').oninput=e=>e.target.value=e.target.value.toUpperCase();
+}
+function doJoin(){
+  Sfx.ensure();
+  const code=$('jcode').value.trim().toUpperCase();
+  const name=$('jname').value.trim();
+  const err=$('jerr');
+  if(code.length!==4){ err.textContent='Enter the 4-character battle code.'; return; }
+  if(name.length<1){ err.textContent='A warrior needs a name.'; return; }
+  if(!clean(name)){ err.textContent='Choose a worthier name.'; return; }
+  db.ref('games/'+code).once('value').then(snap=>{
+    if(!snap.exists()){ err.textContent='No realm found with that code.'; return; }
+    S.code=code; S.role='player';
+    const pref=db.ref('games/'+code+'/players').push();
+    S.pid=pref.key; S.meName=name;
+    pref.set({name,avatar:S.meAv,score:0,streak:0,lastPoints:0,lastCorrect:false});
+    pref.onDisconnect().remove();
+    db.ref('games/'+code).on('value',s=>{ const g=s.val()||{}; S.game=g;
+      S.players=g.players||{}; S.answers=g.answers||{}; S.phase=g.phase; S.q=g.currentQ; render(); });
+  }).catch(e=>{ err.textContent='Connection failed — check Firebase config.'; console.warn(e); });
+}
+function submitAnswer(choice){
+  if(S.phase!=='question') return;
+  const mine=(S.answers[S.q]||{})[S.pid];
+  if(mine) return;
+  db.ref('games/'+S.code+'/answers/'+S.q+'/'+S.pid).set({choice,at:fb.database.ServerValue.TIMESTAMP});
+  Sfx.tap(); buzz(20);
+  lockPlayer(choice);
+}
+
+/* ================================================================
+   10)  RENDER ROUTER  (full render only on phase/question change)
+   ================================================================ */
+function render(){
+  if(!S.phase){ return; }
+  const key=S.role+':'+S.phase+':'+S.q;
+  if(key!==S.lastKey){ S.lastKey=key; enterPhase(); }
+  patch();
+}
+function enterPhase(){
+  // realm skin + flash on new question index
+  if(['countdown','question','reveal','leaderboard'].includes(S.phase)){ applyRealm(S.q); }
+  else applyRealm(0);
+
+  if(S.role==='host') renderHostPhase(); else renderPlayerPhase();
+
+  // phase-enter side effects
+  if(S.phase==='countdown'){ if(S.role==='host'){ realmFlash(S.q);} runCountdown(); }
+  if(S.phase==='question'){ Sfx.go(); }
+  if(S.phase==='reveal'){ enterReveal(); }
+  if(S.phase==='leaderboard'){ animateLeaderboard(); if(S.role==='host'){ typeSaga(); Sfx.whoosh(); } }
+  if(S.phase==='podium'){ runPodium(); }
+}
+
+/* -------------------------------------------------- HOST phase views */
+function renderHostPhase(){
+  const a=app();
+  if(S.phase==='lobby'){
+    const url=location.origin+location.pathname+'?join='+S.code;
+    a.innerHTML=`
+      <div class="screen">
+        <div class="sub">RAGNAROK · REALM OPEN</div>
+        <div class="row" style="gap:6vw;align-items:center">
+          <div>
+            <div class="tiny">Join at this screen · code</div>
+            <div class="code">${S.code}</div>
+            <div class="tiny">${QUESTIONS.length} questions · 5 realms</div>
+          </div>
+          <div id="qr"></div>
+        </div>
+        <div class="row"><span class="tiny">Warriors</span><span class="count" id="pcount">0</span></div>
+        <div class="players" id="plist"></div>
+        <button class="btn big" id="begin">⚡ Begin the Saga</button>
+      </div>`;
+    try{ new QRCode($('qr'),{text:url,width:190,height:190,colorDark:'#08101e',colorLight:'#dff2ff',correctLevel:QRCode.CorrectLevel.M}); }catch(e){}
+    $('begin').onclick=()=>{ Sfx.go(); hostBegin(); };
+  }
+  else if(S.phase==='countdown'){
+    a.innerHTML=`<div class="screen"><div class="sub" id="realmlabel"></div><div class="cd" id="cd">3</div></div>`;
+    const r=REALMS[S.q%5]; $('realmlabel').textContent='REALM 0'+(S.q%5+1)+' · '+r.name;
+  }
+  else if(S.phase==='question'){
+    const q=QUESTIONS[S.q];
+    a.innerHTML=`
+      <div class="screen">
+        <div class="row"><span class="tiny">Realm 0${S.q%5+1} · ${REALMS[S.q%5].name}</span>
+          <span class="tiny">Q${S.q+1}/${QUESTIONS.length}</span></div>
+        <div class="qtext">${esc(q.q)}</div>
+        <div class="row"><div class="timernum mono" id="tnum"></div>
+          <div class="row"><span class="tiny">Answered</span><span class="acount" id="acount">0</span></div></div>
+        <div class="timerwrap"><div class="timerbar" id="tbar"></div></div>
+        <div class="opts ${q.options.length===2?'two':''}" id="opts">${optsHTML(q,false)}</div>
+        <button class="btn ghost" id="skip">Reveal now ▸</button>
+      </div>`;
+    $('skip').onclick=hostReveal;
+  }
+  else if(S.phase==='reveal'){
+    const q=QUESTIONS[S.q];
+    a.innerHTML=`
+      <div class="screen">
+        <div class="sub">TRUTH REVEALED</div>
+        <div class="qtext">${esc(q.q)}</div>
+        <div class="opts ${q.options.length===2?'two':''}" id="opts">${optsHTML(q,true)}</div>
+        <button class="btn big" id="stand">Standings ▸</button>
+      </div>`;
+    $('stand').onclick=()=>db.ref('games/'+S.code).update({phase:'leaderboard'});
+  }
+  else if(S.phase==='leaderboard'){
+    const last=S.q>=QUESTIONS.length-1;
+    a.innerHTML=`
+      <div class="screen">
+        <div class="sub">STANDINGS · AFTER REALM 0${S.q%5+1}</div>
+        <div class="saga" id="saga"></div>
+        <div class="lb" id="lb"></div>
+        <button class="btn big" id="next">${last?'⚡ To Valhalla':'Next Realm ▸'}</button>
+      </div>`;
+    $('next').onclick=()=>{ if(last) db.ref('games/'+S.code).update({phase:'podium'});
+      else hostToQuestion(S.q+1); };
+  }
+  else if(S.phase==='podium'){
+    a.innerHTML=`
+      <div class="screen">
+        <div class="sub">VALHALLA</div>
+        <div class="podium" id="podium"></div>
+        <div class="winline" id="winline"></div>
+        <button class="btn ghost" id="again">New Game</button>
+      </div>`;
+    $('again').onclick=()=>location.reload();
+  }
+}
+
+/* -------------------------------------------------- PLAYER phase views */
+function renderPlayerPhase(){
+  const a=app(); const me=S.players[S.pid]||{};
+  if(S.phase==='lobby'){
+    a.innerHTML=`<div class="screen">
+      <div class="pchip" style="font-size:22px"><span class="av">${me.avatar||S.meAv}</span> ${esc(me.name||S.meName)}</div>
+      <div class="you" style="font-size:26px;margin-top:2vh">You're in!</div>
+      <div class="dim">Eyes on the big screen — the saga begins soon.</div>
+      <div class="tiny" id="pcnt2"></div>
+    </div>`;
+  }
+  else if(S.phase==='countdown'){
+    a.innerHTML=`<div class="screen"><div class="you" style="font-size:24px">Get ready…</div>
+      <div class="cd" id="cd">3</div></div>`;
+  }
+  else if(S.phase==='question'){
+    const q=QUESTIONS[S.q];
+    a.innerHTML=`<div class="screen" style="justify-content:flex-start;padding-top:16px">
+      <div class="row" style="width:100%;justify-content:space-between">
+        <span class="tiny">${esc(me.name||'')}</span><span class="timernum mono" id="tnum"></span></div>
+      <div class="timerwrap"><div class="timerbar" id="tbar"></div></div>
+      <div class="dim" style="margin:6px 0">Tap your answer</div>
+      <div class="opts ${q.options.length===2?'two':''}" id="opts">${optsHTML(q,false,true)}</div>
+      <div class="answered hidden" id="lock">Answer locked ⚡</div>
+    </div>`;
+    bindPlayerOpts();
+  }
+  else if(S.phase==='reveal'){
+    const q=QUESTIONS[S.q];
+    const correct=me.lastCorrect, pts=me.lastPoints||0;
+    a.innerHTML=`<div class="screen">
+      <div class="you" style="font-size:26px">${correct?'Worthy! ✅':'Missed ❌'}</div>
+      <div class="pts ${pts?'':'zero'}">${pts?'+'+pts:'+0'}</div>
+      <div class="dim">Correct: <b>${esc(q.options[q.answer])}</b></div>
+      ${me.streak>=2?`<div class="you">🔥 ${me.streak} streak</div>`:''}
+    </div>`;
+  }
+  else if(S.phase==='leaderboard'){
+    const rank=rankMap(S.players)[S.pid]||'-';
+    a.innerHTML=`<div class="screen">
+      <div class="sub">YOUR STANDING</div>
+      <div class="you" style="font-size:64px;font-family:Orbitron">#${rank}</div>
+      <div class="pchip" style="font-size:20px"><span class="av">${me.avatar}</span> ${esc(me.name)}</div>
+      <div class="mono" style="font-size:28px">${me.score||0} pts</div>
+    </div>`;
+  }
+  else if(S.phase==='podium'){
+    const rank=rankMap(S.players)[S.pid]||'-';
+    const win=rank===1;
+    a.innerHTML=`<div class="screen">
+      <div class="boot" style="font-size:clamp(30px,12vw,60px)"><span class="rag">${win?'👑':'⚔️'}</span></div>
+      <div class="you" style="font-size:40px;font-family:Orbitron">#${rank}</div>
+      <div class="winline" style="font-size:26px">${win?'Champion of the Realms!':'A saga well fought.'}</div>
+      <div class="mono" style="font-size:24px">${me.score||0} pts</div>
+    </div>`;
+    if(win) buzz([60,40,120]);
+  }
+}
+function optsHTML(q,reveal,phone){
+  return q.options.map((o,i)=>{
+    const cls='opt o'+i+(reveal?(i===q.answer?' right':' dead'):'');
+    const gly=q.options.length===2?(i===0?'✓':'✗'):GLYPHS[i];
+    return `<div class="${cls}" data-i="${i}"><span class="gly">${gly}</span><span>${esc(o)}</span></div>`;
+  }).join('');
+}
+function bindPlayerOpts(){
+  const me=(S.answers[S.q]||{})[S.pid];
+  [...$('opts').children].forEach(el=>{
+    el.onclick=()=>submitAnswer(+el.dataset.i);
+  });
+  if(me){ lockPlayer(me.choice); }
+}
+function lockPlayer(choice){
+  const opts=$('opts'); if(!opts) return;
+  [...opts.children].forEach(el=>{ el.style.pointerEvents='none';
+    if(+el.dataset.i===choice) el.classList.add('chosen'); else el.classList.add('dead'); });
+  const l=$('lock'); if(l) l.classList.remove('hidden');
+}
+
+/* ================================================================
+   11)  PATCH (dynamic bits, no full re-render)
+   ================================================================ */
+function patch(){
+  if(S.phase==='lobby'){
+    const n=Object.keys(S.players).length;
+    if(S.role==='host'){
+      const pc=$('pcount'); if(pc) pc.textContent=n;
+      const pl=$('plist');
+      if(pl && pl.childElementCount!==n){
+        pl.innerHTML=Object.values(S.players).map(p=>
+          `<div class="pchip"><span class="av">${p.avatar||'⚔️'}</span>${esc(p.name)}</div>`).join('');
+        Sfx.tap();
+      }
+    } else { const c=$('pcnt2'); if(c) c.textContent=n+' warriors gathered'; }
+  }
+  if(S.phase==='question'){
+    const ac=$('acount'); if(ac) ac.textContent=Object.keys(S.answers[S.q]||{}).length;
+    if(S.role==='player'){ const mine=(S.answers[S.q]||{})[S.pid]; if(mine) lockPlayer(mine.choice); }
+  }
+}
+
+/* ================================================================
+   12)  TIMERS  (single interval; patches DOM in place)
+   ================================================================ */
+setInterval(()=>{
+  if(S.phase==='question' && S.game && S.game.questionStartAt){
+    const q=QUESTIONS[S.q];
+    const rem=Math.max(0,q.time-(serverNow()-S.game.questionStartAt));
+    const bar=$('tbar'), num=$('tnum');
+    if(bar) bar.style.width=(rem/q.time*100)+'%';
+    if(num) num.textContent=Math.ceil(rem/1000);
+  }
+  hostTick();
+},100);
+
+/* ================================================================
+   13)  COUNTDOWN animation (3-2-1)
+   ================================================================ */
+function runCountdown(){
+  let n=3; const el=$('cd'); if(!el) return;
+  el.textContent=n; Sfx.count(n); buzz(30);
+  const iv=setInterval(()=>{ n--; if(n<=0){ clearInterval(iv);
+      if($('cd')) $('cd').textContent='⚡'; return; }
+    const e=$('cd'); if(!e){ clearInterval(iv); return; }
+    e.textContent=n; e.style.animation='none'; void e.offsetWidth; e.style.animation='';
+    Sfx.count(n); buzz(30);
+  },1000);
+}
+
+/* ================================================================
+   14)  REVEAL effects
+   ================================================================ */
+function enterReveal(){
+  if(S.role==='player'){
+    const me=S.players[S.pid]||{};
+    const f=$('flash'); f.className=me.lastCorrect?'g':'r';
+    setTimeout(()=>f.className='',450);
+    if(me.lastCorrect){ Sfx.correct(); buzz([20,40,20]); } else { Sfx.wrong(); buzz(120); }
+  } else {
+    // host: play a tone based on whether anyone got it
+    const q=QUESTIONS[S.q]; const any=Object.values(S.answers[S.q]||{}).some(a=>a.choice===q.answer);
+    if(any) Sfx.correct(); else Sfx.wrong();
+  }
+}
+
+/* ================================================================
+   15)  LEADERBOARD animation
+   ================================================================ */
+function animateLeaderboard(){
+  const lb=$('lb'); if(!lb) return;
+  const arr=Object.entries(S.players).map(([id,p])=>({id,...p}))
+    .sort((a,b)=>(b.score||0)-(a.score||0)).slice(0,8);
+  const max=Math.max(1,...arr.map(p=>p.score||0));
+  lb.innerHTML=arr.map((p,i)=>{
+    const climb=(S.climbs&&S.climbs[p.id]>0)?`<span class="climb">▲${S.climbs[p.id]}</span>`:'';
+    return `<div class="lbrow ${i===0?'lead':''}" style="animation-delay:${i*0.09}s">
+      <div class="bar" data-w="${(p.score||0)/max*100}"></div>
+      <div class="rk">${i+1}</div><div class="av">${p.avatar||'⚔️'}</div>
+      <div class="nm">${esc(p.name)} ${climb}</div>
+      <div class="sc mono" data-target="${p.score||0}">0</div></div>`;
+  }).join('');
+  // grow bars + count up
+  requestAnimationFrame(()=>{ [...lb.querySelectorAll('.bar')].forEach(b=>b.style.width=b.dataset.w+'%'); });
+  lb.querySelectorAll('.sc').forEach((el,i)=>{
+    const target=+el.dataset.target; const dur=800, t0=performance.now();
+    function step(t){ const k=Math.min(1,(t-t0)/dur); el.textContent=Math.round(target*k*(2-k));
+      if(k<1) requestAnimationFrame(step); else el.textContent=target; }
+    setTimeout(()=>requestAnimationFrame(step),i*90);
+  });
+}
+function typeSaga(){
+  const el=$('saga'); if(!el||!S.saga.length){ if(el) el.textContent='The realms hold their breath…'; return; }
+  let i=0; el.textContent='';
+  (function next(){ if(i>=S.saga.length) return; el.textContent=S.saga[i]; i++;
+    setTimeout(next,1900); })();
+}
+
+/* ================================================================
+   16)  PODIUM + confetti
+   ================================================================ */
+function runPodium(){
+  if(S.role!=='host'){ return; }
+  const arr=Object.entries(S.players).map(([id,p])=>({id,...p}))
+    .sort((a,b)=>(b.score||0)-(a.score||0));
+  const top=arr.slice(0,3);
+  const order=[2,1,0]; // reveal 3rd, 2nd, 1st
+  const pod=$('podium'); if(!pod) return;
+  const slots={0:'p1',1:'p2',2:'p3'};
+  pod.innerHTML=top.map((p,i)=>`
+    <div class="pod ${slots[i]}" id="pod${i}">
+      <div class="av">${p.avatar||'⚔️'}</div>
+      <div class="nm">${esc(p.name)}</div>
+      <div class="sc mono">${p.score||0}</div>
+      <div class="plaque"><div class="rk">${i+1}</div></div>
+    </div>`).join('');
+  // order DOM as 2 / 1 / 3 visually
+  const p1=$('pod0'),p2=$('pod1'),p3=$('pod2');
+  pod.innerHTML=''; if(p2)pod.appendChild(p2); if(p1)pod.appendChild(p1); if(p3)pod.appendChild(p3);
+  Sfx.drumroll(3.2);
+  let step=0;
+  const seq=[2,1,0];
+  const iv=setInterval(()=>{
+    const idx=seq[step]; const el=$('pod'+idx);
+    if(el){ el.classList.add('show'); Sfx.count(3-step); buzz(40); }
+    step++;
+    if(step>=3){ clearInterval(iv);
+      setTimeout(()=>{ const w=top[0];
+        $('winline').textContent=(w?esc(w.name):'A hero')+' ascends to the throne of Asgard! 👑';
+        Sfx.fanfare(); confetti(); }, 700);
+    }
+  },1100);
+}
+function confetti(){
+  const c=$('confetti'); c.classList.add('on');
+  const ctx=c.getContext('2d'); c.width=innerWidth; c.height=innerHeight;
+  const cols=['#ffd24a','#ff6a3d','#7bf0ff','#b97bff','#4dffcf','#ffffff'];
+  const P=[]; for(let i=0;i<220;i++) P.push({x:Math.random()*c.width,y:-20-Math.random()*c.height,
+    vy:2+Math.random()*4,vx:-2+Math.random()*4,s:4+Math.random()*7,
+    col:cols[i%cols.length],rot:Math.random()*6,vr:-.2+Math.random()*.4});
+  let frames=0;
+  (function loop(){ ctx.clearRect(0,0,c.width,c.height); frames++;
+    P.forEach(p=>{ p.x+=p.vx;p.y+=p.vy;p.rot+=p.vr;
+      ctx.save();ctx.translate(p.x,p.y);ctx.rotate(p.rot);ctx.fillStyle=p.col;
+      ctx.fillRect(-p.s/2,-p.s/2,p.s,p.s*.6);ctx.restore();
+      if(p.y>c.height+20){ p.y=-20; p.x=Math.random()*c.width; } });
+    if(frames<600) requestAnimationFrame(loop); else c.classList.remove('on');
+  })();
+}
+
+/* ================================================================
+   17)  TRON GRID FLOOR (host background)
+   ================================================================ */
+function startGrid(){
+  const cv=$('grid'); const ctx=cv.getContext('2d'); let w,h;
+  function resize(){ w=cv.width=innerWidth; h=cv.height=innerHeight; }
+  resize(); addEventListener('resize',resize);
+  let off=0;
+  (function draw(){
+    ctx.clearRect(0,0,w,h);
+    const col=getComputedStyle(document.body).getPropertyValue('--neon').trim()||'#6ff0ff';
+    const hor=h*0.44, cx=w/2;
+    ctx.save(); ctx.shadowBlur=8; ctx.shadowColor=col; ctx.strokeStyle=col; ctx.lineWidth=1.1;
+    // converging verticals
+    for(let i=-22;i<=22;i++){ ctx.globalAlpha=0.12+0.10*(1-Math.abs(i)/22);
+      ctx.beginPath(); ctx.moveTo(cx+i*26,hor); ctx.lineTo(cx+i*300,h+40); ctx.stroke(); }
+    // moving horizontals (perspective)
+    off=(off+0.006)%1;
+    for(let i=0;i<30;i++){ let t=((i+off)/30); let y=hor+(h-hor)*t*t;
+      ctx.globalAlpha=0.04+0.26*t; ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(w,y); ctx.stroke(); }
+    ctx.restore();
+    // subtle top glow line at horizon
+    ctx.globalAlpha=0.5; ctx.strokeStyle=col; ctx.shadowBlur=20; ctx.shadowColor=col;
+    ctx.beginPath(); ctx.moveTo(0,hor); ctx.lineTo(w,hor); ctx.stroke(); ctx.globalAlpha=1;
+    requestAnimationFrame(draw);
+  })();
+}
+</script>
+</body>
+</html>
